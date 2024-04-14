@@ -9,12 +9,9 @@ editor_options:
 
 # Data Analysis Replication {.unnumbered}
 
-**Minimum:** 3 analyses, one descriptive statistical analysis, one visualization, and one inferential statistical analysis.
-
-
 ## Introduction {.unnumbered}
 
-Microglia are central nervous system (CNS)-resident immune cells with key roles in many neurological diseases. Microglia morphology changes in response to stimuli and is often used as a proxy for neuroinflammation and/or pathology. This paper tested for comparability across five common ImageJ (NIH) methods used to assess microglia morphology in mice. Analyses were conducted on identical photomicrographs, as well as individual microglia cells within the photomicrographs for direct comparison. The results of the five methods indicated a lack of comparability, leading the authors to conclude that studies should combine multiple methods to achieve an accurate representation of microglia morphology.   
+Microglia are central nervous system (CNS)-resident immune cells with key roles in many neurological diseases. Microglia morphology changes in response to stimuli and is often used as a proxy for neuroinflammation and/or pathology. Mice were subjected to control or PLX (microglia depletion and repopulation) treatment, then challenged with LPS (component of bacterial membrane) to elicit a strong immune response. Brains were collected and processed for microglia imaging. This paper tested for comparability across five common ImageJ (NIH) methods used to assess microglia morphology in mice. Analyses were conducted on identical photomicrographs, as well as individual microglia cells within the photomicrographs for direct comparison. The results of the five methods indicated a lack of comparability, leading the authors to conclude that studies should combine multiple methods to achieve an accurate representation of microglia morphology.   
 
 This paper conducted five ImageJ-based analysis techniques, two on full 40x photomicrographs and three on single microglia cells isolated from those photomicrographs. These photomicrographs were stained for Ionized calcium binding adapter molecule 1 (Iba1). Iba1 is a cannonical microglial marker used to examine microglial reactivity. The techniques were applied to identify alterations in microglial morphology or percent coverage between **Treatment** groups (Control vs PLX) that had pharmacologically manipulated microglia following an inflammatory stimuli. The five analysis techniques were:
 
@@ -24,9 +21,9 @@ This paper conducted five ImageJ-based analysis techniques, two on full 40x phot
 4. Single cell skeletal analysis to quantify microglial ramification and cell body size. 
 5. Sholl analysis to determine the extent of branching of individual microglia via intercepts on concentric circles around the cell body.
 
-Authors then fit hierarchical generalized linear mixed models using {glmmTMB} package in ***R***. The error distribution (beta, negative-binomial, gaussian, gamma) used depended on the scale of the response variable. All models included a fixed effect for treatment. Sholl analysis included additional effects, described below. Random effects structure was used for aggregated, single cell, and Sholl analysis data sets. Inferences were based on a combination of coefficient estimates (β) and their 95% confidence intervals, differences between predicted conditional means (∆), effect sizes (d), and p-values following Tukey’s adjustments for multiple comparisons using {emmeans} package in ***R***.
+Authors then investigated microglial differences between control and treatment groups by fitting hierarchical generalized linear mixed models using {glmmTMB} package in ***R***. The error distribution (beta, negative-binomial, gaussian, gamma) used depended on the scale of the response variable. All models included a fixed effect for treatment. Sholl analysis included additional effects, described below. Random effects structure was used for aggregated, single cell, and Sholl analysis data sets. Inferences were based on a combination of coefficient estimates (β) and their 95% confidence intervals, differences between predicted conditional means (∆), effect sizes (d), and p-values following Tukey’s adjustments for multiple comparisons using {emmeans} package in ***R***.
 
-Here, I have replicated an aggregated analysis of Iba1 coverage, a single cell analysis of Iba1 coverage, and Sholl analysis of cell complexity. I also replicated the associated visualizations.
+Here, I have replicated two versions of analysis technique 1, full photomicrograph analysis of Iba1 percent coverage, and the associated visualizations (plus descriptive statistics). I also attempted to replicate the Sholl analysis and visualization.
 
 
 ## Preliminaries
@@ -35,14 +32,24 @@ Load required packages
 ```{r}
 #| warning: false
 
+# install.packages("rempsyc")
+library(rempsyc) # publication-ready t-tests in R
+
+pkgs <- c("tidyverse", "skimr", "broom", "ggprism", "ggpubr", "effectsize", "flextable", "glmmTMB", "emmeans", "lme4", "rstatix", "DescTools")
+install_if_not_installed(pkgs) # rempsyc function for easy installation
+
 library(tidyverse) # data wrangling and ggplot2
 library(skimr) # data wrangling
+library(broom) # data wrangling
 library(ggprism) # data visualization
 library(ggpubr) # data visualization
-# install.packages("glmmTMB")
-library(glmmTMB) # frequentist model fitting
-# install.packages("ggprism")
-library(emmeans) # statistics
+library(effectsize) # helper package for rempsyc
+library(flextable) # helper package for rempsyc
+library(glmmTMB) # frequentist model fitting, specified in paper
+library(emmeans) # statistics, specified in paper
+library(lme4) # statistics
+library(rstatix) # statistics
+library(DescTools) # statistics
 ```
 
 Tell {knitr} where to output all of the figures associated with code chunks and where to find any images to include in the ".html" output.
@@ -66,41 +73,6 @@ head(sholl_data)
 ```
 
 
-## Data Analysis/Visualization Replications
- 
-* Beta error distributions were used for proportions or percentages bounded between 0 and 1 
-  + Mean percentage coverage
-  + Percentage coverage
-  + Lacunarity
-  + Density
-  + Circularity
-* Negative-binomial error distributions were used for overdispersed integer counts
-  + Number of branches
-  + Branch lengths
-  + Number of endpoints
-  + Cell area
-  + Cell perimeter
-  + Mean number of branches
-  + Mean branch length
-  + Mean number of endpoints
-  + Mean number of cells
-  + Sholl mean number of intersections
-* Gaussian error distribution was used for a continuous, ~normally distributed variable 
-  + Fractal dimension
-* Gamma error distribution with a log link function was used for a continuous, left-skewed variable
-  + Span ratio
-
-
-Based on the results of previous studies, we expected the effect of distance from cell body on mean number of intersections to be nonlinear. Although to our knowledge no prior studies have explicitly modeled this nonlinearity, we chose to do so to improve inference reliability. We did this by including a natural cubic spline on distance from cell body in the model. 
-In all models for single cell outcome measures, we included random intercepts for individual animal crossed with random intercepts for brain region. This random effects structure appropriately accommodated the hierarchical clustering of multiple data points from each mouse and the hierarchical clustering of data points from each individual within the three brain regions (n = 9 data points within each of three regions from each individual [n = 27 total data points from each mouse]). 
-
-In the models for cell-aggregated widefield outcome measures, we included random intercepts for individual mouse crossed with random intercepts for the binned number of cells that were used to obtain the outcome value (n = 9 data points from each mouse). This random effects structure accommodated hierarchical clustering of multiple aggregate data points from each mouse and the possibility that the number of cells used to calculate a given value might introduce unaccounted for variation. 
-
-In the Sholl analysis model, we included only a random intercept for individual mouse to accommodate the hierarchical clustering of multiple data points from each mouse (n = 25 distances at which the mean number of intersections was calculated from each mouse). 
-
-We fit all models in the frequentist framework using the package glmmTMB in the R statistical computing environment. We based inferences on a combination of coefficient estimates (β) and their 95% confidence intervals, differences between predicted conditional means (∆), effect sizes (d), and p-values following Tukey’s adjustments for multiple comparisons, all of which were obtained using the package emmeans in R."
-
-
 ## Analysis 1: Whole Average Percent Coverage (Figure 3a)
 
 ### File description
@@ -112,6 +84,8 @@ We fit all models in the frequentist framework using the package glmmTMB in the 
 3. **Avg_percent** – The percentage of the image covered by dark pixels calculated from nine photomicrographs (3 brain slices per mouse and 3 photomicrographs (of retrosplenial, somatosensory, and entorhinal cortices) per brain slice) of Iba1-stained tissue converted to binary and then averaged to produce a single value per animal.
 4. **Perc_Cov** – The averaged percent coverage converted to a decimal.
 
+Authors employed two approaches for generating percent coverage data: (1) The percent coverage values for the 9 photomicrographs were averaged to obtain a single percent coverage value per mouse, and (2) each of the 9 separate percent coverage values per mouse were retained as individual data points without averaging the values.
+
 ### Data analysis
 
 #### Step 1: Exploratory data analysis of **Perc_Cov** ~ **Treatment**
@@ -119,7 +93,7 @@ We fit all models in the frequentist framework using the package glmmTMB in the 
 Explicit descriptive statistics were not conducted in this paper, but I used 
 `skim()` to check variable types and calculate five number summaries. I also 
 plotted the spread of the data as a histogram and visualized mean Iba1 coverage 
-(proportion) given Treatment.
+(proportion) given Treatment. I then ran a t-test comparing group means.
 
 ```{r}
 # Determine number of observations (nrow), number (n_unique) of Treatments
@@ -130,8 +104,9 @@ skim(perc_coverage_avg)
 perc_coverage_avg$Animal_ID <- format(strptime(perc_coverage_avg$Animal_ID, 
                                                format = "%H:%M:%S"), 
                                       format = "%H:%M:%S")
+
 # Check Animal_ID is now a character type variable
-str(perc_coverage_avg)
+str(perc_coverage_avg$Animal_ID)
 
 # Determine how observations are distributed among subjects and treatments
 with(perc_coverage_avg, table(Animal_ID, Treatment))
@@ -154,12 +129,35 @@ p2 <- ggplot(perc_coverage_avg, aes(x = Treatment, y = Perc_Cov)) +
 p2
 ```
 
+```{r}
+# Compare group means
+perc_coverage_avg_treatment <- perc_coverage_avg %>% 
+  pivot_wider(names_from = 'Treatment', values_from = 'Perc_Cov')
+
+t.test(x = perc_coverage_avg_treatment$Control, 
+       y = perc_coverage_avg_treatment$PLX, 
+       mu = 0, alternative = "two.sided", var.equal = FALSE)
+
+# nice t-test table
+t.test.results <- nice_t_test(
+  data = perc_coverage_avg,
+  response = "Perc_Cov",
+  group = "Treatment",
+  warning = FALSE
+)
+
+t_table <- nice_table(t.test.results)
+t_table
+```
+
+> Note: The d is Cohen’s d, and the 95% CI is the confidence interval of the effect size (Cohen’s d). p is the p-value, df is degrees of freedom, and t is the t-value.
+
 #### Step 2: Run generalized linear mixed model of **Perc_Cov** (Mean Iba1 coverage) given **Treatment**
 
 Authors fit all models in the frequentist framework using the package {glmmTMB}.
 
 > NOTE: to fit a model in glmmTMB:
-
+>
 >* specify a model for the conditional effects, in the standard R formula notation
 * specify a model for the random effects, in the notation that is common
 to the {nlme} and {lme4} packages. Random effects are specified as x|g,
@@ -190,8 +188,9 @@ perc_cov_avg_model <- glmmTMB(Perc_Cov ~ Treatment,
 summary(perc_cov_avg_model)
 ```
 
-Formula
-$$logit(\pi_i) = -1.57444 + 0.08311 \times {Treatment}$$
+Formula $$logit(\pi_i) = -1.57444 + 0.08311 \times {Treatment}$$
+
+The coefficient for treatment is positive but not significantly different from 0. Thus, the treatment does not increase the log(odds ratio) of Perc_Cov (i.e., this measure of microglia reactivity is not significantly increased by the treatment). In this model, for every one unit change in treatment (0 for control, 1 for PLX), the log odds of Perc_Cov increases by 0.08311.
 
 #### Step 3: Obtain inferential statistics using {emmeans}
 
@@ -200,8 +199,8 @@ intervals, differences between predicted conditional means (∆), effect sizes (
 and p-values following Tukey’s adjustments for multiple comparisons
 
 Differences between predicted conditional means (∆) are reported in %, which I
-interpreted to be the absolute value in units of the response variable (mean Iba1 
-coverage). I reported my estimate of the difference in units of proportion.
+interpreted to be the absolute value in units of the response variable (% mean Iba1 
+coverage). I reported my estimate of the difference in units of proportion, as graphed.
 
 ```{r}
 # Model converted to log scale, want results on response scale
@@ -213,7 +212,7 @@ emm_r <- emmeans(perc_cov_avg_model, ~ Treatment,  component = "response")
 
 # Get the pairwise comparisons
 # estimate = difference between predicted conditional means (∆) and p-value
-# why is estimate negative??
+# negative value if control < PLX
 (pairwise_r <- pairs(emm_r, adjust = "tukey"))
 
 
@@ -227,9 +226,9 @@ pairwise <- pairs(emm, adjust = "tukey")
 # d = Difference between means / Pooled standard deviation
 (effect_size <- eff_size(emm, 
                          sigma = sigma(perc_cov_avg_model),
-                         edf = df.residual(perc_cov_avg_model)
-                         )
-  )
+                         edf = df.residual(perc_cov_avg_model)))
+
+# reporting absolute value of ∆ and d below
 ```
 
 ##### Step 4: Visualize Mean Iba1 coverage ~ treatment
@@ -237,9 +236,6 @@ pairwise <- pairs(emm, adjust = "tukey")
 Scatter dot plot with estimated means and 95% CI
 
 ```{r}
-# set plot size
-options(repr.plot.width = 2, repr.plot.height =4)
-
 # define custom graph colors
 gray_scale <- c("#A0A0A4", "#808080")
 
@@ -270,10 +266,12 @@ p_vals <- tibble::tribble(
 p1 <- base + 
   scale_color_manual(values = gray_scale) +
   theme_prism(base_size = 16,
-              base_fontface = "plain") + 
+              base_fontface = "plain",
+              base_family = "Arial") + 
   theme(legend.position = "none",
         axis.line = element_line(linewidth = 0.2),
         axis.ticks = element_line(linewidth = 0.2),
+        axis.ticks.length = unit(0.1, "cm"),
         axis.text.y = element_text(size = 10),
         axis.text.x = element_text(vjust=1.5), # move labels closer to axis
         axis.ticks.x = element_blank()) +
@@ -287,24 +285,14 @@ ggsave("ERC_fig3a.png",
        path = "images/")
 ```
 
-### Comparison of Results
-
-::: {layout="[50,50]" layout-valign="bottom"}
-![Mine: p-value = 0.34, Mean ∆ = -0.012, d = -0.0006](images/ERC_fig3a.png)
-
-![Paper: p-value = 0.35, Mean ∆ = 1.2%, d = 0.0006](images/fig3a.png)
-:::
-
-> Figure 3a. Full photomicrograph analyses of microglial morphology were not sensitive to differences between control and treatments groups. Mean percent coverage of Iba1 staining per animal (3 brain slices per mouse and 3 photomicrographs per brain slice were used) is shown as individual data points. Treatment n = 12 mice, Control n = 13 mice. Results are presented as point estimates with 95% confidence intervals, which were estimated from mixed effects model.
-
-> NOTE: Mean Iba1 coverage analyzed/graphed as *proportion* of coverage, while mean ∆ appears to be reported by authors as |*percentage* of coverage|. Figure caption specifies negative-binomial error distribution, but statistical analysis section specifies average percent coverage was modeled with beta error distribution.
+> NOTE: Comparison of Results shown at the end of Analysis 2
 
 ```{r, layout="[55,45]"}
 #| eval: false # delete if want to graph
 #| echo: false
 #| layout-valign: bottom
 #| fig-cap: 
-#|   - "Mine"
+#|   - "Mine: p-value = 0.34, Mean ∆ = -0.012, d = -0.0006"
 #|   - "Paper: p-value = 0.35, Mean ∆ = 1.2%, d = 0.0006"
 
 p1
@@ -351,7 +339,7 @@ perc_coverage <- full_join(perc_coverage, cells)
 Explicit descriptive statistics were not conducted in this paper, but I used 
 `skim()` to check variable types and calculate five number summaries. I also 
 plotted the spread of the data as a histogram and visualized Iba1 coverage 
-(proportion) given Treatment.
+(proportion, **Perc_Cov**) given **Treatment**.
 
 ```{r}
 # Determine number of observations (nrow), number (n_unique) of Treatments
@@ -398,8 +386,9 @@ summary(perc_cov_model)
 Random intercepts do not seem to add explanatory power 
 (very low amount of Variance in response variable explained)
 
-Formula
-$$logit(\pi_i) = -1.65878 + 0.24164 \times {Treatment}$$
+Formula $$logit(\pi_i) = -1.65878 + 0.24164 \times {Treatment}$$
+
+The coefficient for treatment is positive and is significantly different from 0. Thus, the treatment increases the log(odds ratio) of Perc_Cov (i.e., this measure of microglia reactivity is significantly increased by the treatment). In this model, for every one unit change in treatment (0 for control, 1 for PLX), the log odds of Perc_Cov increases by 0.24164.
 
 #### Step 3: Obtain inferential statistics using {emmeans}
 
@@ -421,7 +410,7 @@ emm_r <- emmeans(perc_cov_model, ~ Treatment,  component = "response")
 
 # Get the pairwise comparisons
 # estimate = difference between predicted conditional means (∆) and p-value
-# why is estimate negative??
+# negative if control < PLX
 (pairwise_r <- pairs(emm_r, adjust = "tukey"))
 
 
@@ -478,10 +467,12 @@ p_vals <- tibble::tribble(
 p1 <- base + 
   scale_color_manual(values = gray_scale) +
   theme_prism(base_size = 16,
-              base_fontface = "plain") + 
+              base_fontface = "plain",
+              base_family = "Arial") + 
   theme(legend.position = "none",
         axis.line = element_line(linewidth = 0.2),
         axis.ticks = element_line(linewidth = 0.2),
+        axis.ticks.length = unit(0.1, "cm"),
         axis.text.y = element_text(size = 10),
         axis.text.x = element_text(vjust=1.5), # move labels closer to axis
         axis.ticks.x = element_blank()) +
@@ -495,136 +486,34 @@ ggsave("ERC_fig3b.png",
        path = "images/")
 ```
 
-### Comparison of Results
+## Analysis 1 and 2: Comparison of Results (Figure 3a-b)
 
-::: {layout="[50,50]" layout-valign="bottom"}
-![Mine: p-value = 0.006, Mean ∆ = -0.035, d = -0.002](images/ERC_fig3b.png)
+::: {layout-ncol=2 layout-valign="bottom"}
+![Paper: p-value = 0.35, Mean ∆ = 1.2%, d = 0.0006](images/fig3a.png)
+
+![Mine: p-value = 0.34, Mean ∆ = 0.012, d = 0.0006](images/ERC_fig3a.png)
 
 ![Paper: p-value = 0.006, Mean ∆ = 3.5%, d = 0.002](images/fig3b.png)
+
+![Mine: p-value = 0.006, Mean ∆ = 0.035, d = 0.002](images/ERC_fig3b.png)
 :::
 
+> Figure 3a. Full photomicrograph analyses of microglial morphology were not sensitive to differences between control and treatments groups. Mean percent coverage of Iba1 staining per animal (3 brain slices per mouse and 3 photomicrographs per brain slice were used) is shown as individual data points. Treatment n = 12 mice, Control n = 13 mice. Results are presented as point estimates with 95% confidence intervals, which were estimated from mixed effects model with beta error distribution.
+>
 > Figure 3b. Photomicrograph-specific (unaveraged) percent coverage detected 
 significantly more Iba1 staining in the treatment group compared to controls. 
 Percent coverage of Iba1 staining, with multiple data points per subject, is 
 shown as individual data points. Treatment n = 108 images (12 mice, 9 images/mouse), 
 Control n = 117 images (13 mice, 9 images/mouse). Results are presented as point 
-estimates with 95% confidence intervals, which were estimated from mixed effects model.
-
-> NOTE: Mean Iba1 coverage analyzed/graphed as *proportion* of coverage, while mean ∆ appears to be reported by authors as |*percentage* of coverage|. Figure caption specifies negative-binomial error distribution, but statistical analysis section specifies percent coverage was modeled with beta error distribution.
-
-
-## Analysis 3: Whole Skeletal Analysis
-
-### File description
-
-Not available? 
-
-### Data analysis
-
-```{r}
-
-```
-
-### Result
-
-```{r}
-#| echo: false
-#| out-width: "50%" # a percent of the window width (e.g., "70%")
-knitr::include_graphics("images/fig3c.png")
-```
-
-"Full photomicrograph skeletal analysis only detected that microglia in the treatment group had fewer endpoints than controls. Mean microglial branch length was calculated by averaging the total length of branches in the photomicrograph by the total number of microglia in the photomicrograph. Full photomicrograph skeletal analysis did not detect differences in mean microglial branch length between photomicrographs from the treatment groups (p-value = 0.40, Mean ∆ = 28 μm, d = 0.002 Fig. 3c). Photomicrographs from the treatment group indicated that microglia had fewer mean endpoints than control microglia (p-value = 0.002, Mean ∆ = 18, d = 0.01; Fig. 3d). A difference in mean number of microglia per photomicrograph between the treatment groups was not detected (p-value = 0.60, Mean ∆ = 0, d = 0.01; Fig. 3e). A difference in mean microglial branches per cell per photomicrograph between treatment groups was not detected (p-value = 0.08, Mean ∆ = 13, d = 0.005; Fig. 3f)."
-
-"Figure 3. Full photomicrograph skeletal analysis detected that microglia from the treatment group had fewer endpoints than the controls but did not detect differences in branch number or branch length. (c) Mean microglial branch length; (d) mean number of endpoints per cell per photomicrograph; (e) mean number of microglial cells per photomicrograph; and (f) mean number of microglial branches per cell per image. Individual data points are presented as gray dots. (d–f) Treatment n = 108 images (12 mice, 9 images/mouse), Control n = 117 images (13 mice, 9 images/mouse). Results are presented as point estimates with 95% confidence intervals, which were estimated from mixed effects models with a negative-binomial error distribution."
+estimates with 95% confidence intervals, which were estimated from mixed effects 
+model with beta error distribution.
+>
+> NOTE: Mean Iba1 coverage analyzed/graphed as *proportion* of coverage, while mean ∆ appears to be reported by authors as |*percentage* of coverage|.
 
 
-## Analysis 4: Single Cell Fractal Analysis
+## Analysis 3: Single Cell Sholl Analysis (bonus)
 
-### File description
-
-**Single_Cell.csv**:  File containing all microglia morphology data collected using single cell skeletal analysis and fractal analysis of Iba1-stained microglia randomly selected and isolated from photomicrographs taken from brain hemispheres.
-
-1. **Animal_ID** – Unique identifier for individual mice.
-2. **Cohort** – Categorical variable denoting the experimental cohort each mouse was in.
-3. **Treatment** – Categorical variable denoting whether each mouse received control diet or Plx5622 (PLX) diet.
-4. **Region** – Categorical variable denoting the brain region from which each photomicrograph was taken. 
-  + Region 1: entorhinal cortex
-  + Region 2: primary somatosensory barrel field cortex
-  + Region 3: retrosplenial cortex.
-5. **FractalDimension(DB**) – Continuous variable calculated with fractal analysis of a statistical measure of pattern complexity of a microglial cell (Db).
-6. **Lacunarity** – Continuous variable calculated with fractal analysis of a geomatric measure of how the microglial cell/pattern fills space.
-7. **Density(pixels/area)** – Continuous variable calculated with fractal analysis of the number of pixels/area occupied by the microglial cell.
-8. **SpanRatio** – Continuous variable calculated with fractal analysis of the longest length/longest width of the microglial cell.
-9. **Circularity** – Continuous variable calculated with fractal analysis of how circular the microglia cell was.
-10. **NumberOfEndpoints** – Continuous variable of Iba1 microglia end points (n).
-11. **BranchLength(um)** – Continuous variable of Iba1 microglia branch lengths (μm).
-12.	**NumberBranches** – Continuous variable of Iba1 microglia branches (n).
-13.	**body_area** – Continuous variable of cell body area of microglia.
-14.	**cell_area_C** – Continuous variable of cell body area of microglia rounded to the nearest whole number.
-15.	**body_perimeter** – Continuous variable of cell body perimeter of microglia (μm).
-16. **cell_perim_C** – Continuous variable of cell body perimeter of microglia rounded to the nearest whole number (μm^2).
- 
-### Data analysis
-
-```{r}
-
-```
-
-### Result
-
-```{r}
-#| echo: false
-#| out-width: "50%" # a percent of the window width (e.g., "70%")
-knitr::include_graphics("images/fig4a.png")
-```
-
-"Fractal analysis detected that microglia from the treatment group had a less complex branching pattern than controls. Fractal analysis performed on isolated microglia detected that microglia from the treatment group had a less complex branching pattern (fractal dimension) than controls (p-value < 0.0001, Mean ∆ = 0.05, d = 0.65; Fig. 4a). However, differences in lacunarity (p-value = 0.72, Mean ∆ = 0.013, d = 0.004), circularity (p-value = 0.08, Mean ∆ = 0.013, d = 0.003), span ratio (p-value = 0.33, Mean ∆ = 0.03,d = 0.10), and density (p-value = 0.22, Mean ∆ = 0.004, d = 0.0001) between treatment groups were not detected (Fig. 4b–e)."
-
-
-## Analysis 5: Single Cell Skeletal Analysis
-
-### File description
-
-**Single_Cell.csv**:  File containing all microglia morphology data collected using single cell skeletal analysis and fractal analysis of Iba1-stained microglia randomly selected and isolated from photomicrographs taken from brain hemispheres.
-
-1. **Animal_ID** – Unique identifier for individual mice.
-2. **Cohort** – Categorical variable denoting the experimental cohort each mouse was in.
-3. **Treatment** – Categorical variable denoting whether each mouse received control diet or Plx5622 (PLX) diet.
-4. **Region** – Categorical variable denoting the brain region from which each photomicrograph was taken. 
-  + Region 1: entorhinal cortex
-  + Region 2: primary somatosensory barrel field cortex
-  + Region 3: retrosplenial cortex.
-5. **FractalDimension(DB**) – Continuous variable calculated with fractal analysis of a statistical measure of pattern complexity of a microglial cell (Db).
-6. **Lacunarity** – Continuous variable calculated with fractal analysis of a geomatric measure of how the microglial cell/pattern fills space.
-7. **Density(pixels/area)** – Continuous variable calculated with fractal analysis of the number of pixels/area occupied by the microglial cell.
-8. **SpanRatio** – Continuous variable calculated with fractal analysis of the longest length/longest width of the microglial cell.
-9. **Circularity** – Continuous variable calculated with fractal analysis of how circular the microglia cell was.
-10. **NumberOfEndpoints** – Continuous variable of Iba1 microglia end points (n).
-11. **BranchLength(um)** – Continuous variable of Iba1 microglia branch lengths (μm).
-12.	**NumberBranches** – Continuous variable of Iba1 microglia branches (n).
-13.	**body_area** – Continuous variable of cell body area of microglia.
-14.	**cell_area_C** – Continuous variable of cell body area of microglia rounded to the nearest whole number.
-15.	**body_perimeter** – Continuous variable of cell body perimeter of microglia (μm).
-16. **cell_perim_C** – Continuous variable of cell body perimeter of microglia rounded to the nearest whole number (μm^2).
- 
-### Data analysis
-
-```{r}
-
-```
-
-### Result
-
-```{r}
-#| echo: false
-#| out-width: "50%" # a percent of the window width (e.g., "70%")
-knitr::include_graphics("images/fig4f.png")
-```
-
-"Single cell skeletal analysis detected that microglia from the treatment group had larger cell bodies, fewer and shorter branches, and fewer endpoints than controls. Microglia from the treatment group had a larger cell body perimeter (p-value = 0.002, Mean ∆ = 14 μm, d = 0.01; Fig. 4f) and area (p-value = 0.01, Mean ∆ = 148 μm2, d = 0.02; Fig. 4g) than controls. Microglia from the treatment group had fewer branches per cell (p-value = 0.002, Mean ∆ = 52, d = 0.04; Fig. 4h), shorter branch length (p-value < 0.0001, Mean ∆ = 315 μm, d = 0.03; Fig. 4i), and fewer endpoints per cell (p-value = 0.001, Mean ∆ = 23, d = 0.03; Fig. 4j) than controls."
-
-
-## Analysis 6: Single Cell Sholl Analysis
+> NOTE: I attempted to recreate their sholl analysis, but ran into some problems. I already included two descriptive statistical analyses, visualizations, and inferential statistical analyses, so this is bonus content. 
 
 ### File description
 
@@ -639,34 +528,274 @@ knitr::include_graphics("images/fig4f.png")
 
 ### Data analysis
 
-In the Sholl analysis, we also included a fixed effect for distance from cell body as well as a two-way interaction between treatment and distance from cell body.
+### Data wrangling
 
+Clean up data frame for hierarchical generalized linear mixed model
 ```{r}
+# Change Animal_ID variable type from time to character
+sholl_data$Animal_ID <- format(strptime(sholl_data$Animal_ID, 
+                                           format = "%H:%M:%S"), 
+                                  format = "%H:%M:%S")
 
+# Check binned number of cells per subject in sholl_data
+cells <- sholl_data %>% 
+  group_by(Animal_ID, Treatment) %>% 
+  summarize(binned_cells = n())
+
+# Add binned number of cells to sholl_data
+sholl_data <- full_join(sholl_data, cells)
+
+# Rename distance variable
+sholl_data <- sholl_data %>% rename(distance = "Distance(um)")
+
+# Make distance a factor
+sholl_data$distance <- as.factor(sholl_data$distance)
+str(sholl_data$distance)
 ```
 
-### Result
+### Data Analysis
+
+#### Step 1: Exploratory data analysis of **intern_C** ~ **distance** + **Treatment**
+
+Explicit descriptive statistics were not conducted in this paper, but I used 
+`skim()` to check variable types and calculate five number summaries. I also 
+plotted the spread of the data as a histogram and visualized average Sholl intersections 
+(rounded count, **intern_C**) by **distance** given **Treatment**.
 
 ```{r}
-#| echo: false
-#| out-width: "50%" # a percent of the window width (e.g., "70%")
-knitr::include_graphics("images/fig4k.png")
+# Determine number of observations (nrow), number (n_unique) of Treatments
+# Check variable types and 5 number summaries
+skim(sholl_data)
+
+# Determine how observations are distributed among subjects and treatments
+with(sholl_data, table(Animal_ID, Treatment))
 ```
 
-"Sholl analysis detected that microglia from the treatment group had fewer and less expansive branches than controls. Microglia from the treatment group had fewer branches intersecting the Sholl analysis circles than controls (p-value = 0.002, Mean ∆ = 2.29 intersections, d = 0.003; Fig. 4k)."
+```{r sholl}
+# Visualize intern_C by Distance(um) given Treatment
+p1 <- ggplot(sholl_data, aes(x = distance, y = intern_C, group = Treatment)) + 
+  geom_point(aes(color = Treatment),
+             size = 1,
+             position = position_jitter(width = 0.1),
+             alpha = 0.5) +
+  scale_color_prism("colorblind_safe") +
+  theme_prism(base_size = 16,
+              base_fontface = "plain",
+              base_family = "Arial") +
+  theme(legend.position = c(0.85, 0.9),
+        axis.line = element_line(linewidth = 0.2),
+        axis.ticks = element_line(linewidth = 0.2),
+        axis.text.y = element_text(size = 12),
+        axis.text.x = element_text(size = 12, angle = 45),
+        axis.ticks.length = unit(0.1, "cm"))
+
+p1
+```
+
+
+#### Step 2: Attempt to run hierarchical generalized linear mixed model of average Sholl intersections (rounded count, **intern_C**) by **distance** given **Treatment**.
+
+This was very hard. I have not yet figured out how they got their point estimates / if this model is the same as theirs.
+
+* Include fixed effect for 
+  + **distance**, distance from cell body
+  + **Treatment**
+  + two-way interaction between **Treatment** and **distance**
+* Include random intercepts for **Animal_ID**, individual mouse
+  + for hierarchical clustering of multiple data points from each mouse (n = 25 distances at which the mean number of intersections was calculated per mouse)
+* Negative-binomial error distribution, as **intern_C** is an overdispersed count variable
+
+Authors also stated that they included a natural cubic spline on **distance**, as they expected this effect to be nonlinear. I think this can be added to the model using {splines} and including a main effect of `ns(Distance(um), 3)`
+
+*Not working after converting distance to a factor...*
+```{r}
+#| eval: false # remove to run code
+#| code-fold: true
+#| code-summary: "Show the code"
+
+# base model, not running with distance as factor
+sholl_model <- glmmTMB(intern_C ~ distance * Treatment + (1|Animal_ID),
+                          family = nbinom2(), # quadratic
+                          data = sholl_data)
+summary(sholl_model)
+
+# modeling nonlinear relationship
+library(splines)
+sholl_model_sp <- glmmTMB(intern_C ~ distance * Treatment + ns(distance, 3) + (1|Animal_ID),
+                          family = nbinom2(link = "log"), # quadratic
+                          data = sholl_data)
+summary(sholl_model_sp)
+```
+
+
+#### Step 3: Attempt to obtain inferential statistics using {emmeans}
+
+Authors used {emmeans} to obtain coefficient estimates (β) and their 95% confidence 
+intervals, differences between predicted conditional means (∆), effect sizes (d), 
+and p-values following Tukey’s adjustments for multiple comparisons
+
+*This is not right, am not getting values across multiple distances*
+```{r}
+#| eval: false # remove to run code
+#| code-fold: true
+#| code-summary: "Show the code"
+
+# Model converted to log scale, want results on response scale
+# Get point estimates (estimated marginal means) and 95% CIs 
+emm_r <- emmeans(sholl_model, ~ Treatment, var = "distance",  component = "response")
+
+# Extract the point estimates and their 95% confidence intervals
+(estimates_r <- summary(emm_r, type = "response"))
+
+# Get the pairwise comparisons
+# estimate = difference between predicted conditional means (∆) and p-value
+# negative if control < PLX
+(pairwise_r <- pairs(emm_r, adjust = "tukey"))
+
+
+# To obtain effect size using pooled standard deviation from model, 
+# need difference between means on log scale
+emm <- emmeans(sholl_model, c("Treatment", "distance"))
+pairwise <- pairs(emm, adjust = "tukey")
+(differences <- summary(pairwise))
+
+# effect size (d)
+# d = Difference between means / Pooled standard deviation
+(effect_size <- eff_size(emm, 
+                         sigma = sigma(sholl_model),
+                         edf = df.residual(sholl_model)
+                         )
+  )
+```
+
+##### Step 4: Running alternative model of average Sholl intersections (rounded count, **intern_C**) by **distance** given **Treatment**.
+
+There is a significant interaction between **distance** and **Treatment**, so restricting comparisons to Treatment within each distance is just a starting point.
+
+```{r}
+# non-linear modeling
+sholl_model <- nlme::lme(intern_C ~ distance + Treatment + distance:Treatment, 
+                         random = ~ 1 | Animal_ID, 
+                         data = sholl_data)
+anova(sholl_model)
+
+
+sholl_modelem <- emmeans::emmeans(sholl_model, pairwise ~ Treatment | distance) # point estimates given Treatment given distance
+```
+
+Expand to show print out of **sholl_modelem**
+```{r}
+#| code-fold: true
+#| code-summary: "Show the code"
+#| collapse: true
+
+print(sholl_modelem)
+```
+
+```{r}
+# get data frame of point estimates and CIs
+sholl_emm <- summary(sholl_modelem$emmeans)
+
+sholl_posthoc_tvals <- sholl_data %>% 
+  group_by(distance) %>% 
+  rstatix::emmeans_test(intern_C ~ Treatment, model = sholl_model) %>% 
+  mutate(p.adj = p.adjust(p,  method = 'bonferroni'),
+         p.adj.signif = case_when(p.adj < 0.001 ~ "***",
+                                  p.adj < 0.01 ~ "**",
+                                  p.adj < 0.05 ~ "*",
+                                  p.adj >= 0.05 ~ '')) %>% 
+  select(group1, group2, distance, df, statistic, p, p.adj, p.adj.signif)
+
+sholl_subject <- sholl_data %>% 
+  group_by(Animal_ID, distance, Treatment) %>% 
+  summarise(mean_inter = mean(intern_C))
+```
+
+#### Step 5: Visualize Branch intersections ~ **distance** + **Treatment**
+
+Scatter dot plot with estimated means and 95% CI
+
+This was very tricky but I kind of did it!
+
+```{r}
+# p values
+p_vals <- sholl_posthoc_tvals %>% 
+  select(group1, group2, distance, p.adj.signif) %>% 
+  filter(p.adj.signif != "") %>% 
+  mutate(y.position = 20:12)
+
+# define custom graph colors
+gray_scale <- c("#A0A0A4", "#101010")
+
+base <- ggplot(sholl_data, 
+               aes(x = distance, y = intern_C, group = Treatment)) + 
+  geom_point(aes(color = factor(Treatment)),
+             position = position_jitter(width = 0.2),
+             size = 0.7,
+             alpha = 0.8) +
+  geom_line(data = sholl_emm, # Add emm
+            aes(y = emmean,
+                color = factor(Treatment)),
+            linewidth = 1) + 
+  geom_ribbon(data = sholl_emm, # Add emm CIs
+              aes(y = emmean, ymin = lower.CL, ymax = upper.CL,
+                  fill = factor(Treatment)),
+              alpha = 0.5) + 
+  scale_x_discrete(limits = c("0", levels(sholl_data$distance)), 
+                   breaks = c("0", as.character(seq(25, 125, by = 25)))) +
+  scale_y_continuous(limits = c(-.9, 20)) +
+  ylab("Mean intersections (n)") +
+  xlab(expression(paste("Distance from cell body (",mu,"m)"))) +
+  ggtitle("Sholl Analysis") +
+  annotate("text", x = p_vals$distance, 
+           y = p_vals$y.position, 
+           label = p_vals$p.adj.signif) +
+  annotate("text", x = 16, y = 19.5, label = "####")
+
+p1 <- base + 
+  scale_color_manual(values = gray_scale) +
+  scale_fill_manual(values = gray_scale) +
+  theme_prism(base_size = 12,
+              base_fontface = "plain",
+              base_family = "Arial") + 
+  theme(legend.position = c(0.8,0.95),
+        axis.line = element_line(linewidth = 0.2),
+        axis.ticks = element_line(linewidth = 0.2),
+        axis.text.y = element_text(size = 10),
+        axis.text.x = element_text(size = 10),
+        axis.ticks.length = unit(0.1, "cm"))
+```
+
+Save plot
+```{r}
+ggsave("ERC_fig4k.png", 
+       width = 3.5, height = 4, units = "in",
+       path = "images/")
+```
+
+### Comparison of Results
+
+::: {layout="[52,48]" layout-valign="middle"}
+![Paper: Hierarchical linear mixed-effects model](images/fig4k.png)
+
+![Mine: Linear mixed-effects model ^####^p<0.0001 main effect, \**p<0.01, \***p<0.001 from bonferroni post-hoc](images/ERC_fig4k.png)
+:::
+
+> Sholl analysis detected that microglia from the treatment group had fewer and less expansive branches than controls. Microglia from the treatment group had fewer branches intersecting the Sholl analysis circles (concentric circles every 5 μm from the cell body) than controls. Treatment n = 324 microglia (12 mice, 27 microglia/mouse), Control n = 345 microglia (13 mice, 27 microglia/mouse) (Fig. 4k).
 
 
 ## Discussion and Reflection
 
-    - Report includes a narrative summary about how successful the analysis replications were or were not - i.e., how well do the replicated results compare to those presented in the original paper?
-    - Report discusses and addresses any challenges encountered... missing data, unclear information about how data were processed in the original publication, etc.
-    - Report discusses where and possible reasons why the analysis replications might differ from the authors' original results
+I successfully replicated the inferential statistical analyses and visualizations conducted on full photomicrographs of Iba1 percent coverage, both averaged by subject (Analysis 1) and including multiple photomicrographs per subject (Analysis 2). This consisted of running generalized linear mixed models with beta error distributions and calculating estimated means (and difference between means) and confidence intervals of the point estimates, and effect sizes. My values for differences between estimated means and effect sizes were negative, as the control value was smaller than the treatment (plx) value, but I took the absolute value for comparison (as I believe the authors did). It seems the authors converted the differences between estimated means to units of percent, while I left mine in units of proportion, as graphed. 
 
-## What to Turn In {.unnumbered}
+Authors stated the photomicrograph-averaged mean percent coverage (Analysis 1) had a 70% smaller effect size than the photomicrograph-specific percent coverage (Analysis 2), which I verified (100 - ((0.0006 / 0.002) * 100) = 70%). However, unlike the authors I noted that the actual value of the effect size is still very small (0.002), which means the difference is negligible even if it is statistically significant.  
 
-Within the repo, make a "data" directory in which you include any ".csv" or ".xlsx" or similar files that contain the original data for the paper as you either downloaded them as supplementary material or received them from the paper's author.
+Overall the DRYAD raw dataset was well described and organized for loading into R, and the statistical analyses were well described in the methods. However, I was not able to attempt replication of fractal analysis, as that data set was not available. I did have to transform the Animal_ID variable from type time to character, and it was not clear what each part (XX:XX:XX) of the Animal_ID meant. I also assumed the beta error distribution was transformed to log odds ratio scale. I was not familiar with this type of error distribution (nor {glmmTMB}), so it took some time to figure that out, and to use {emmeans} to get the inferential statistics. It would have been helpful if the authors had included the equation for each model in either the DRYAD dataset or methods section of the paper. They also did not incldue any R code, which obvisouly would have been immensely helpful for exact replication of analyses.
 
-Near your own results, embed some of the original figs/tables that you replicate. You can include code in one of the following formats to reference files in your "images" folder for inclusion in your document. The first alternative uses raw HTML, the second and third accomplish the same thing using {knitr} in an {r} code block in either a **Quarto** (Alternative 2) document.
+The visualizations were more straightforward than the inferential statistical analyses, but it took a lot of customization to match the aesthetics of the paper. I think I got pretty close!
 
-> **TL/DR:** I should be able to CLONE your repository and knit your ".Rmd" or ".qmd" file to show all of your completed work for the data analysis replication assignment. Practically speaking, this means that if your code reads in data from external files, such as ".xlsx" or ".csv" files, it should be general enough to work on ANY machine. Thus, you will want to have your code read any data from local files housed *within* your repository , i.e., in the "data" folder described above. Your repository should also include a PDF of the original paper with the analyses being replicated at the top level of the repo.
+As the original paper did not report any descriptive statistics, I was not able to compare my descriptive statistics to theirs, but doing an exploratory data analysis prior to generalized linear mixed modeling certainly helped to work out some of the kinks and get familiar with the data sets.
 
+For an additional challenge, I also attempted to replicate their Sholl analysis. This was not as straightforward, and I was not successful, likely due to the introduction of nonlinear effects. I was able to partially replicate their visualization, showing point estimates and CIs rather than a model-derived curve and CI.
+
+This assignment was very challenging, but I did learn a lot about data wrangling, generalized linear modeling, and visualization (as well as Quarto aesthetics).
